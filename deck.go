@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"os"
 )
 
 type Deck struct {
@@ -18,23 +16,25 @@ type Card struct {
 	Back  string `json:back`
 }
 
-func DeckFromFilepath(f string) Deck {
+func DeckFromFilepath(f string) (Deck, error) {
 	fileContents, err := ioutil.ReadFile(f)
 	if err != nil {
-		fmt.Printf("Received error when reading Deck file: %v\n", err)
-		os.Exit(1)
+		return Deck{}, err
 	}
-	deck := DeckFromFileContents(fileContents)
+
+	deck, err := DeckFromFileContents(fileContents)
+	if err != nil {
+		return Deck{}, err
+	}
 	deck.filepath = f
-	return deck
+	return deck, nil
 }
 
-func DeckFromFileContents(content []byte) Deck {
+func DeckFromFileContents(content []byte) (Deck, error) {
 	deck := Deck{}
 	err := json.Unmarshal(content, &deck)
 	if err != nil {
-		fmt.Printf("Error parsing deck json contents: %v\n", err)
-		os.Exit(1)
+		return Deck{}, err
 	}
-	return deck
+	return deck, nil
 }

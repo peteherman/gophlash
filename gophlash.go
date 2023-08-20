@@ -37,8 +37,12 @@ type model struct {
 	cursor       int
 }
 
-func initialModel() model {
-	deck := DeckFromFilepath("deck.json")
+func initialModel(filepath string) model {
+	deck, err := DeckFromFilepath(filepath)
+	if err != nil {
+		fmt.Printf("Error reading deck file: %v\n", err)
+		os.Exit(1)
+	}
 	return model{
 		deck:         deck,
 		cardIndex:    0,
@@ -95,13 +99,12 @@ func (m model) View() string {
 func main() {
 	var deckPath = flag.String("deck", "", "Path to a .json file containing the contents of your deck")
 	flag.Parse()
-
 	if deckPath != nil && *deckPath == "" {
 		fmt.Printf("Please specify where to find your deck using the cmdline arg --deck <path to deck>.json\n")
 		os.Exit(1)
 	}
 
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(initialModel(*deckPath))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("There's been an error: %v\n", err)
 		os.Exit(1)
