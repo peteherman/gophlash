@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var libraryContents = []byte("{\"decks\": {\"default\": {\"name\": \"default deck\",\"cards\": [{\"front\": \"Front of card 1\",\"back\": \"Back of card 1\"},{\"front\": \"Front of card 2\",\"back\": \"Back of card 2\"},{\"front\": \"Front of card 3\",\"back\": \"Back of card 3\"}]}}}")
+var libraryContents = []byte("[{\"name\": \"default deck\",\"cards\": [{\"front\": \"Front of card 1\",\"back\": \"Back of card 1\"},{\"front\": \"Front of card 2\",\"back\": \"Back of card 2\"},{\"front\": \"Front of card 3\",\"back\": \"Back of card 3\"}]},{\"history\": {\"name\": \"history\",\"cards\": [{\"front\": \"Columbus sailed the ocean blue\",\"back\": \"in 1492\"},{\"front\": \"He was the 1st President\",\"back\": \"George Washington\"}]}}]")
 
 func makeTempLibraryJSON(contents []byte) (string, error) {
 	tmpDirectoryPath, err := os.MkdirTemp("", "testing-dir")
@@ -24,16 +24,19 @@ func TestDefaultDirectory(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		t.Errorf("Error getting home directory for user: %v\n", err)
+		return
 	}
 	defaultDir, err := DefaultDirectory()
 	if err != nil {
 		t.Errorf("Received error when getting default dir: %v\n", err)
+		return
 	}
 	expectedDir := filepath.Join(homeDir, DefaultLibraryDirectory,
 		DefaultLibraryFile)
 	if expectedDir != defaultDir {
 		t.Errorf("Expected default dir != received: %v, %v\n",
 			expectedDir, defaultDir)
+		return
 	}
 }
 
@@ -71,8 +74,11 @@ func TestLibraryFromGoodJSON(t *testing.T) {
 	library, err := ParseLibrary(libraryFilepath)
 	if err != nil {
 		t.Errorf("Received error when parsing library: %v\n", err)
+		return
 	}
-	if len(library.Decks) <= 0 {
+	if len(library) <= 0 {
 		t.Errorf("Didn't parse any decks from json\n")
+		return
 	}
 }
+

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 )
+type Library []Deck
 
 const DefaultLibraryFile string = "library.json"
 const DefaultLibraryDirectory string = ".gophlash"
@@ -31,11 +32,6 @@ func SetupDefaultLibrary() error {
 	return nil
 }
 
-type Library struct {
-	filepath string
-	Decks    map[string]Deck `json:decks`
-}
-
 func ParseLibrary(filepath string) (Library, error) {
 	fileContents, err := os.ReadFile(filepath)
 	if err != nil {
@@ -46,6 +42,5 @@ func ParseLibrary(filepath string) (Library, error) {
 	if err != nil {
 		return Library{}, err
 	}
-	library.filepath = filepath
 	return library, nil
 }
