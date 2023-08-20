@@ -26,13 +26,12 @@ func TestDefaultDirectory(t *testing.T) {
 		t.Errorf("Error getting home directory for user: %v\n", err)
 		return
 	}
-	defaultDir, err := DefaultDirectory()
+	defaultDir, err := DefaultLibraryDir()
 	if err != nil {
 		t.Errorf("Received error when getting default dir: %v\n", err)
 		return
 	}
-	expectedDir := filepath.Join(homeDir, DefaultLibraryDirectory,
-		DefaultLibraryFile)
+	expectedDir := filepath.Join(homeDir, DefaultLibraryDirectory)
 	if expectedDir != defaultDir {
 		t.Errorf("Expected default dir != received: %v, %v\n",
 			expectedDir, defaultDir)

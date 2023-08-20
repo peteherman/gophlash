@@ -11,16 +11,36 @@ type Library []Deck
 const DefaultLibraryFile string = "library.json"
 const DefaultLibraryDirectory string = ".gophlash"
 
-func DefaultDirectory() (string, error) {
+func DefaultLibraryDir() (string, error) {
 	homeDirectory, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDirectory, DefaultLibraryDirectory, DefaultLibraryFile), nil
+	return filepath.Join(homeDirectory, DefaultLibraryDirectory), nil
+}
+
+func DefaultLibraryPath() (string, error) {
+	defaultDirectory, err := DefaultLibraryDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(defaultDirectory, DefaultLibraryFile), nil
+}
+
+func DefaultLibraryExists() bool {
+	libraryPath, err := DefaultLibraryPath()
+	if err != nil {
+		fmt.Printf("Error trying to determine your default library path: %v\n", err)
+		os.Exit(1)
+	}
+	if _, err := os.Stat(libraryPath); err == nil {
+		return true
+	}
+	return false
 }
 
 func SetupDefaultLibrary() error {
-	defaultDir, err := DefaultDirectory()
+	defaultDir, err := DefaultLibraryDir()
 	if err != nil {
 		return err
 	}

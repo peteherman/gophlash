@@ -148,9 +148,14 @@ func (m model) View() string {
 func main() {
 	var libraryPath = flag.String("library", "", "Path to a .json file containing your library of gophlash cards")
 	flag.Parse()
+
 	if libraryPath != nil && *libraryPath == "" {
-		fmt.Printf("Please specify where to find your library using the cmdline arg --library <path to library>.json\n")
-		os.Exit(1)
+		if !DefaultLibraryExists() {
+			fmt.Printf("No library file specified and the default library doesn't exist. Please specify where to find your library using the cmdline arg --library <path to library>.json\n")
+			os.Exit(1)
+		}
+		fmt.Printf("Default library found. Using default library as no --library was specified\n")
+		*libraryPath, _ = DefaultLibraryPath()
 	}
 
 	p := tea.NewProgram(initialModel(*libraryPath))
