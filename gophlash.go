@@ -176,6 +176,7 @@ func (m model) View() string {
 		return ""
 	}
 }
+
 func viewModeView(m model) string {
 	if m.viewingDeck {
 		return viewModeDeckListView(m)
@@ -190,7 +191,8 @@ func viewModeView(m model) string {
 		}
 		body += line + "\n"
 	}
-	help := helpTextStyle.Render("Use the keyboard to move up/down,\nuse <space>/<enter> to select a deck,\npress q to quit.")
+	help := helpTextStyle.Render("Use the keyboard to move up/down,\nuse " +
+		"<space>/<enter> to select a deck,\npress q to quit.")
 
 	return header + body + help + "\n"
 }
@@ -198,7 +200,8 @@ func viewModeView(m model) string {
 func viewModeDeckListView(m model) string {
 	deck := m.library.Decks[m.deckIndex]
 	header := staticDeckNameStyle.Render(fmt.Sprintf("Deck: %v", deck.Name))
-	header += "\n" + staticDeckNameStyle.Render(fmt.Sprintf("Card: (%v/%v)", m.cardIndex+1, len(deck.Cards)))
+	header += "\n" + staticDeckNameStyle.Render(fmt.Sprintf("Card: (%v/%v)",
+		m.cardIndex+1, len(deck.Cards)))
 	currentCard := deck.Cards[m.cardIndex]
 	cardContent := ""
 	if m.showingFront {
@@ -210,6 +213,7 @@ func viewModeDeckListView(m model) string {
 		cardContent += "\n\n"
 		cardContent += cardBodyStyle.Render(currentCard.Back)
 	}
-	help := helpTextStyle.Render("Use the keyboard to move cards,\nuse <space>/<enter> to flip cards,\npress q to quit.")
+	help := helpTextStyle.Render("Use the keyboard to move cards,\nuse " +
+		"<space>/<enter> to flip cards,\npress q to quit.")
 	return header + "\n" + cardStyle.Render(cardContent) + "\n" + help + "\n"
 }
