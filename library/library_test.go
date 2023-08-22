@@ -1,4 +1,4 @@
-package main
+package library
 
 import (
 	"os"
@@ -26,7 +26,7 @@ func TestDefaultDirectory(t *testing.T) {
 		t.Errorf("Error getting home directory for user: %v\n", err)
 		return
 	}
-	defaultDir, err := DefaultLibraryDir()
+	defaultDir, err := defaultLibraryDir()
 	if err != nil {
 		t.Errorf("Received error when getting default dir: %v\n", err)
 		return
@@ -41,7 +41,7 @@ func TestDefaultDirectory(t *testing.T) {
 
 func TestErrorWhenParseLibraryFromNonexistentFile(t *testing.T) {
 	madeUpFilepath := "doesnt_exist.txt"
-	_, err := ParseLibrary(madeUpFilepath)
+	_, err := LibraryFromFilepath(madeUpFilepath)
 	if err == nil {
 		t.Errorf("Should've been an error for non-existent file\n")
 		return
@@ -56,7 +56,7 @@ func TestErrorWhenParseLibraryFromBadJSON(t *testing.T) {
 		return
 	}
 
-	_, err = ParseLibrary(libraryFilepath)
+	_, err = LibraryFromFilepath(libraryFilepath)
 	if err == nil {
 		t.Errorf("Should've received error on malformed json library\n")
 		return
@@ -70,12 +70,12 @@ func TestLibraryFromGoodJSON(t *testing.T) {
 		return
 	}
 
-	library, err := ParseLibrary(libraryFilepath)
+	library, err := LibraryFromFilepath(libraryFilepath)
 	if err != nil {
 		t.Errorf("Received error when parsing library: %v\n", err)
 		return
 	}
-	if len(library) <= 0 {
+	if len(library.Decks) <= 0 {
 		t.Errorf("Didn't parse any decks from json\n")
 		return
 	}
