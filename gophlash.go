@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/peteherman/gophlash/library"
@@ -37,14 +39,20 @@ const (
 	EditMode
 )
 
+type keymap = struct {
+	next, prev, add, quit, save, delete key.Binding
+}
+
 type model struct {
-	library      library.Library
-	deckIndex    int
-	viewingDeck  bool
-	cardIndex    int
-	showingFront bool
-	cursor       int
-	mode         int
+	library        library.Library
+	deckIndex      int
+	viewingDeck    bool
+	cardIndex      int
+	showingFront   bool
+	cursor         int
+	mode           int
+	inputs         []textarea.Model
+	textEditKeymap keymap
 }
 
 func main() {
@@ -124,7 +132,35 @@ func initialModel(libraryFilepath string, initialMode int) model {
 		showingFront: true,
 		cursor:       0,
 		mode:         initialMode,
+		inputs:       make([]textarea.Model, 0),
+		textEditKeymap: keymap{
+			next: key.NewBinding(
+				key.WithKeys("tab"),
+				key.WithHelp("tab", "next"),
+			),
+			prev: key.NewBinding(
+				key.WithKeys("shift+tab"),
+				key.WithHelp("shift+tab", "prev"),
+			),
+			quit: key.NewBinding(
+				key.WithKeys("esc", "ctrl+c"),
+				key.WithHelp("esc", "quit"),
+			),
+			add: key.NewBinding(
+				key.WithKeys("ctrl+plus"),
+				key.WithHelp("ctrl+plus", "Append card to deck"),
+			),
+			save: key.NewBinding(
+				key.WithKeys("ctrl+s"),
+				key.WithHelp("ctrl+s", "Save deck"),
+			),
+			delete: key.NewBinding(
+				key.WithKeys("ctrl+d"),
+				key.WithHelp("ctrl+d", "delete card"),
+			),
+		},
 	}
+	model.addInputs()
 	return model
 }
 
@@ -137,6 +173,28 @@ func readLibrary(filepath string) library.Library {
 	return library
 }
 
+func (m model) addInputs() {
+	m.inputs[0] = newDeckNameInput()
+	m.inputs[1] = newCardInput()
+	m.inputs[2] = newCardInput()
+
+	if m.mode == CreateMode {
+		m.inputs[0].Focus()
+	}
+}
+
+func newDeckNameInput() textarea.Model {
+	t := textarea.New()
+	t.MaxHeight = 1
+	t.MaxWidth = 1
+	t.SetHeight(1)
+	t.Placeholder = "Deck Name"
+	return t
+}
+func newCardInput() textarea.Model {
+	return textarea.New()
+}
+
 func (m model) Init() tea.Cmd {
 	return nil
 }
@@ -146,13 +204,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ViewMode:
 		return updateViewMode(m, msg)
 	case CreateMode:
-		return m, nil
+		return updateCreateMode(m, msg)
 	case EditMode:
 		return m, nil
 	default:
 		return m, nil
 	}
 }
+
 func updateViewMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.viewingDeck {
 		switch msg := msg.(type) {
@@ -197,6 +256,51 @@ func updateViewMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func updateCreateMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.textEditKeymap.quit):
+			for i := range m.inputs {
+				m.inputs[i].Blur()
+			}
+			return m, tea.Quit
+		case key.Matches(msg, m.textEditKeymap.next):
+			m.inputs[m.cursor].Blur()
+			m.cursor++
+			if m.cursor > len(m.inputs)-1 {
+				m.cursor = 0
+			}
+			cmd := m.inputs[m.cursor].Cursor()
+			cmds = append(cmds, cmd)
+		case key.Matches(msg, m.textEditKeymap.prev):
+			m.inputs[m.cursor].Blur()
+			m.cursor--
+			if m.cursor < 0 {
+				m.cursor = len(m.inputs) - 1
+			}
+			cmd := m.inputs[m.cursor].Focus()
+			cmds = append(cmds, cmd)
+		case key.Matches(msg, m.textEditKeymap.add):
+			fmt.Printf("Add pressed\n")
+		case key.Matches(msg, m.textEditKeymap.delete):
+			fmt.Printf("Delete pressed\n")
+		case key.Matches(msg, m.textEditKeymap.save):
+			fmt.Printf("Save pressed\n")			
+		}
+	}
+	// Update all textareas
+	for i := range m.inputs {
+		newModel, cmd := m.inputs[i].Update(msg)
+		m.inputs[i] = newModel
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)		
+
 }
 
 func (m model) View() string {
