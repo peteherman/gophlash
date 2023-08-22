@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/peteherman/gophlash/library"
 	"os"
+	"strings"
 )
 
 var (
@@ -48,7 +49,8 @@ type model struct {
 
 func main() {
 	libraryPath := libraryPathFromCmdlineArgs()
-	programModel := initialModel(libraryPath, ViewMode)
+	mode := modeFromCmdlineArgs()
+	programModel := initialModel(libraryPath, mode)
 	p := tea.NewProgram(programModel)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("There's been an error: %v\n", err)
@@ -77,6 +79,39 @@ func checkDefaultLibraryExists() {
 			"using the cmdline arg --library <path to library>.json\n")
 		os.Exit(1)
 	}
+}
+
+func modeFromCmdlineArgs() int {
+	checkCmdlineArgsContainsSubcommand()
+	subcommand := strings.ToLower(flag.Args()[0])
+	switch subcommand {
+	case "view":
+		return ViewMode
+	case "create":
+		return CreateMode
+	case "edit":
+		return EditMode
+	default:
+		printSubcommandHelpMenu()
+		return -1
+	}
+}
+
+func checkCmdlineArgsContainsSubcommand() {
+	if len(flag.Args()) < 1 {
+		fmt.Printf("Please specify a subcommand, try 'help' to view a menu\n")
+		os.Exit(1)
+	}
+}
+
+func printSubcommandHelpMenu() {
+	fmt.Printf("Gophlash is a way to view, create, and edit decks of flashcards " +
+		"all within your terminal!\nSpecify one of the subcommands below to " +
+		"get started\n" +
+		"\tview\t\tView a deck of flashcards\n" +
+		"\tcreate\t\tCreate a brand new deck of cards\n" +
+		"\tedit\t\tEdit a deck of cards in your library\n")
+	os.Exit(0)
 }
 
 func initialModel(libraryFilepath string, initialMode int) model {
