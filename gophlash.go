@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/peteherman/gophlash/deck"
 	"github.com/peteherman/gophlash/library"
 	"os"
 	"strings"
@@ -31,6 +32,13 @@ var (
 			Foreground(lipgloss.Color("60"))
 	focusTextStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("200"))
+
+	borderFocusedStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("200"))
+	borderBlurredStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("238"))
 )
 
 const (
@@ -52,6 +60,7 @@ type model struct {
 	cursor         int
 	mode           int
 	inputs         []textarea.Model
+	currentDeck    *deck.Deck
 	textEditKeymap keymap
 }
 
@@ -133,6 +142,7 @@ func initialModel(libraryFilepath string, initialMode int) model {
 		cursor:       0,
 		mode:         initialMode,
 		inputs:       make([]textarea.Model, 0),
+		currentDeck:  nil,
 		textEditKeymap: keymap{
 			next: key.NewBinding(
 				key.WithKeys("tab"),
@@ -160,7 +170,7 @@ func initialModel(libraryFilepath string, initialMode int) model {
 			),
 		},
 	}
-	model.addInputs()
+	addInputs(&model)
 	return model
 }
 
@@ -173,13 +183,14 @@ func readLibrary(filepath string) library.Library {
 	return library
 }
 
-func (m model) addInputs() {
-	m.inputs[0] = newDeckNameInput()
-	m.inputs[1] = newCardInput()
-	m.inputs[2] = newCardInput()
+func addInputs(model *model) {
+	model.inputs = make([]textarea.Model, 3)
+	model.inputs[0] = newDeckNameInput()
+	model.inputs[1] = newCardInput()
+	model.inputs[2] = newCardInput()
 
-	if m.mode == CreateMode {
-		m.inputs[0].Focus()
+	if model.mode == CreateMode {
+		model.inputs[0].Focus()
 	}
 }
 
@@ -188,9 +199,17 @@ func newDeckNameInput() textarea.Model {
 	t.MaxHeight = 1
 	t.MaxWidth = 1
 	t.SetHeight(1)
+	t.ShowLineNumbers = false
 	t.Placeholder = "Deck Name"
+	t.FocusedStyle = deckNameInputFocusedStyle
 	return t
 }
+
+var deckNameInputFocusedStyle textarea.Style = textarea.Style{
+	Base:        lipgloss.NewStyle().Foreground(lipgloss.Color("200")),
+	Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("238")),
+}
+
 func newCardInput() textarea.Model {
 	return textarea.New()
 }
@@ -274,7 +293,7 @@ func updateCreateMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor > len(m.inputs)-1 {
 				m.cursor = 0
 			}
-			cmd := m.inputs[m.cursor].Cursor()
+			cmd := m.inputs[m.cursor].Focus()
 			cmds = append(cmds, cmd)
 		case key.Matches(msg, m.textEditKeymap.prev):
 			m.inputs[m.cursor].Blur()
@@ -289,9 +308,14 @@ func updateCreateMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.textEditKeymap.delete):
 			fmt.Printf("Delete pressed\n")
 		case key.Matches(msg, m.textEditKeymap.save):
-			fmt.Printf("Save pressed\n")			
+			return m, saveLibrary(m)
 		}
+	case saveErr:
+		return m, nil
+	case saveSuccess:
+		return m, nil
 	}
+
 	// Update all textareas
 	for i := range m.inputs {
 		newModel, cmd := m.inputs[i].Update(msg)
@@ -299,8 +323,7 @@ func updateCreateMode(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	return m, tea.Batch(cmds...)		
-
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -308,7 +331,7 @@ func (m model) View() string {
 	case ViewMode:
 		return viewModeView(m)
 	case CreateMode:
-		return ""
+		return createModeView(m)
 	case EditMode:
 		return ""
 	default:
@@ -356,3 +379,72 @@ func viewModeDeckListView(m model) string {
 		"<space>/<enter> to flip cards,\npress q to quit.")
 	return header + "\n" + cardStyle.Render(cardContent) + "\n" + help + "\n"
 }
+
+func createModeView(m model) string {
+	result := ""
+	deckNameInput := createDeckNameInputView(m)
+	result += deckNameInput + "\n"
+
+	cardInputViews := createCardInputViews(m)
+	result += cardInputViews
+	result += "\n\n"
+	return result
+}
+
+func createDeckNameInputView(m model) string {
+	deckNameInput := m.inputs[0].View()
+	if m.cursor == 0 {
+		return borderFocusedStyle.Render(deckNameInput)
+	}
+	return borderBlurredStyle.Render(deckNameInput)
+}
+
+func createCardInputViews(m model) string {
+	frontCardView := cardTitleStyle.Render("Front") + "\n\n" + m.inputs[1].View()
+	backCardView := cardTitleStyle.Render("Back") + "\n\n" + m.inputs[2].View()
+	if m.cursor == 1 {
+		frontCardView = borderFocusedStyle.Render(frontCardView)
+		backCardView = borderBlurredStyle.Render(backCardView)
+	} else {
+		frontCardView = borderBlurredStyle.Render(frontCardView)
+		if m.cursor == 2 {
+			backCardView = borderFocusedStyle.Render(backCardView)
+		} else {
+			backCardView = borderBlurredStyle.Render(backCardView)
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, frontCardView, backCardView)
+}
+
+func saveLibrary(m model) tea.Cmd {
+	return func() tea.Msg {
+		if m.currentDeck == nil {
+			m.currentDeck = &deck.Deck{
+				Name:  m.inputs[0].Value(),
+				Cards: make([]deck.Card, 1),
+			}
+			m.currentDeck.Cards[0] = deck.Card{
+				Front: m.inputs[1].Value(),
+				Back:  m.inputs[2].Value(),
+			}
+			m.library.Decks = append(m.library.Decks, *m.currentDeck)
+		} else {
+			newCard := deck.Card{
+				Front: m.inputs[1].Value(),
+				Back:  m.inputs[2].Value(),
+			}
+			m.currentDeck.Cards = append(m.currentDeck.Cards, newCard)
+		}
+		err := m.library.Save()
+		if err != nil {
+			return saveErr{err}
+		}
+		return saveSuccess(true)
+	}
+}
+
+type saveErr struct {
+	err error
+}
+
+type saveSuccess bool

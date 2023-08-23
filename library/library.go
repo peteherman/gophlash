@@ -86,3 +86,14 @@ func setupDefaultLibrary() (Library, error) {
 	library.filepath, _ = DefaultLibraryPath()
 	return library, nil
 }
+
+func (l Library) Save() error {
+	contents, err := json.Marshal(l.Decks)
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(l.filepath, contents, 0666); err != nil {
+		return err
+	}
+	return nil
+}
